@@ -1,0 +1,108 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Roles: EMPLOYEE | CHEF_DEPT | DIRECTOR | DG | DRH | IT | ADMIN
+// RequestType: ENR_SI_005 | ENR_SI_006 | ENR_SI_008 | AUTRE
+// RequestStatus: DRAFT | SUBMITTED | VALIDATION_N1 | VALIDATION_N2 | VALIDATION_DG | IN_PROGRESS_IT | CLOSED | REJECTED
+// ValidationAction: APPROVED | REJECTED
+
+model Department {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  directionName  String
+  directionCode  String
+  chefEmail      String?
+  chefName       String?
+  directorEmail  String?
+  directorName   String?
+  createdAt      DateTime @default(now())
+
+  users          User[]
+  requests       Request[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String
+  firstName    String
+  lastName     String
+  matricule    String?
+  fonction     String?
+  role         String     @default("EMPLOYEE")
+  isActive     Boolean    @default(true)
+  emailVerified      Boolean    @default(false)
+  verificationToken  String?
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  requests     Request[]  @relation("RequestOwner")
+  validations  Validation[]
+}
+
+model Request {
+  id            String        @id @default(uuid())
+  reference     String        @unique
+  type          String
+  status        String        @default("DRAFT")
+  
+  // Données demandeur
+  requesterId   String
+  requester     User          @relation("RequestOwner", fields: [requesterId], references: [id])
+  departmentId  String?
+  department    Department?   @relation(fields: [departmentId], references: [id])
+
+  // Données formulaire (JSON stocké en String pour SQLite)
+  formData      String
+
+  // Suivi
+  currentStep   Int           @default(1)
+  rejectedAt    DateTime?
+  rejectionReason String?
+  closedAt      DateTime?
+  closureNote   String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  validations   Validation[]
+  emailLogs     EmailLog[]
+}
+
+model Validation {
+  id         String           @id @default(uuid())
+  requestId  String
+  request    Request          @relation(fields: [requestId], references: [id])
+  validatorId String?
+  validator  User?            @relation(fields: [validatorId], references: [id])
+  step       Int
+  stepLabel  String           // ex: "Chef de Département", "Directeur des Opérations"
+  action     String
+  comment    String?
+  validatorName String?       // Nom du valideur (snapshot au moment de la validation)
+  validatorEmail String?
+  createdAt  DateTime         @default(now())
+}
+
+model EmailLog {
+  id         String   @id @default(uuid())
+  requestId  String
+  request    Request  @relation(fields: [requestId], references: [id])
+  to         String
+  subject    String
+  status     String   @default("sent")
+  error      String?
+  sentAt     DateTime @default(now())
+}

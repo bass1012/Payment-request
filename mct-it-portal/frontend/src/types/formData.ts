@@ -1,0 +1,283 @@
+/**
+ * Types et validation client des `formData`, dérivés du contrat partagé
+ * `shared/formData.contract.json` — la source de vérité unique également
+ * consommée par le backend (validation stricte à la soumission).
+ *
+ * ⚠️ FICHIER GÉNÉRÉ — ne pas éditer à la main.
+ * Source : `shared/formData.contract.json` — régénérer depuis le backend :
+ *   `npm run generate:formdata-types`
+ * Le test `test/formData.contract-sync.test.js` vérifie la synchronisation
+ * du fichier avec le contrat ET la parité d'exécution avec le validateur
+ * backend (mêmes règles, mêmes messages).
+ *
+ * Tout écart (clé manquante, clé inconnue, type invalide) est détecté AVANT
+ * l'envoi, avec exactement les mêmes messages que le serveur.
+ */
+
+import type { RequestType } from '../constants/requests'
+
+/** Contrat formData (copie inline du JSON partagé). */
+const FORM_DATA_CONTRACT = {
+  version: 1,
+  commonKeys: ["firstName","lastName","department","position","matricule"],
+  legacyKeys: ["numeroMemo","motif","demandesInformatiques","licencesApplications","accesPrivileges","division","service","objet","chantier","site","chrono","copiesA","hasAppro","hasBC","hasBL","hasDecompte","hasDevis","hasFacture","expenses","amount","direction","fonction"],
+  schemas: {
+  "ENR_SI_005": {
+    "publicType": "EMAIL",
+    "description": "Création d'adresse électronique",
+    "required": [],
+    "optional": [
+      "memoNumber"
+    ],
+    "strings": [
+      "memoNumber"
+    ],
+    "numbers": [],
+    "arrays": []
+  },
+  "ENR_SI_006": {
+    "publicType": "PRINT",
+    "description": "Impression couleur",
+    "required": [
+      "printObject",
+      "copiesA4",
+      "copiesA3"
+    ],
+    "optional": [],
+    "strings": [
+      "printObject"
+    ],
+    "numbers": [
+      "copiesA4",
+      "copiesA3"
+    ],
+    "arrays": []
+  },
+  "ENR_SI_008": {
+    "publicType": "ASSET",
+    "description": "Demande d'actifs informatiques",
+    "required": [
+      "requestReason"
+    ],
+    "optional": [
+      "itAssets",
+      "softwareLicenses",
+      "accessPrivileges"
+    ],
+    "strings": [
+      "itAssets",
+      "softwareLicenses",
+      "accessPrivileges",
+      "requestReason"
+    ],
+    "numbers": [],
+    "arrays": []
+  },
+  "ENR_RF_002": {
+    "publicType": "CASH",
+    "description": "Bon de caisse",
+    "required": [
+      "paymentAmount",
+      "requestReason"
+    ],
+    "optional": [],
+    "strings": [
+      "requestReason"
+    ],
+    "numbers": [
+      "paymentAmount"
+    ],
+    "arrays": []
+  },
+  "ENR_GA_003": {
+    "publicType": "SUPPLY",
+    "description": "Demande d'approvisionnement",
+    "required": [
+      "allocationSection",
+      "items",
+      "expenseNature",
+      "possibleSuppliers",
+      "deliveryAddress",
+      "offersAmount"
+    ],
+    "optional": [
+      "consultedSubcontractors",
+      "linkedAssets",
+      "linkedAssetRequestId",
+      "linkedAssetRequestRef",
+      "supplier1",
+      "supplier2",
+      "supplier3",
+      "subcontractor1",
+      "subcontractor2",
+      "subcontractor3",
+      "selectedAssetIds"
+    ],
+    "strings": [
+      "allocationSection",
+      "deliveryAddress",
+      "supplier1",
+      "supplier2",
+      "supplier3",
+      "subcontractor1",
+      "subcontractor2",
+      "subcontractor3",
+      "linkedAssetRequestId",
+      "linkedAssetRequestRef"
+    ],
+    "numbers": [
+      "offersAmount"
+    ],
+    "arrays": [
+      "items",
+      "expenseNature",
+      "possibleSuppliers",
+      "consultedSubcontractors",
+      "linkedAssets",
+      "selectedAssetIds"
+    ]
+  },
+  "AUTRE": {
+    "publicType": "OTHER",
+    "description": "Autre demande IT",
+    "required": [
+      "description"
+    ],
+    "optional": [],
+    "strings": [
+      "description"
+    ],
+    "numbers": [],
+    "arrays": []
+  }
+},
+} as const
+
+type Contract = typeof FORM_DATA_CONTRACT
+type InternalType = keyof Contract['schemas']
+
+/** Correspondance type public (frontend) → type interne (contrat/backend). */
+export const PUBLIC_TO_INTERNAL: Record<RequestType, InternalType> = {
+  EMAIL: 'ENR_SI_005',
+  PRINT: 'ENR_SI_006',
+  ASSET: 'ENR_SI_008',
+  CASH: 'ENR_RF_002',
+  SUPPLY: 'ENR_GA_003',
+  OTHER: 'AUTRE',
+}
+
+type Schema<T extends InternalType> = Contract['schemas'][T]
+type KeysOf<T extends InternalType, K extends 'required' | 'optional' | 'strings' | 'numbers' | 'arrays'> =
+  Schema<T>[K][number]
+
+type StringFields<T extends InternalType> = { [P in KeysOf<T, 'strings'>]: string }
+type NumberFields<T extends InternalType> = { [P in KeysOf<T, 'numbers'>]: number | string }
+type ArrayFields<T extends InternalType> = { [P in KeysOf<T, 'arrays'>]: unknown[] }
+type RequiredFields<T extends InternalType> = { [P in KeysOf<T, 'required'>]: string | number | unknown[] }
+type OptionalFields<T extends InternalType> = { [P in KeysOf<T, 'optional'>]?: string | number | unknown[] }
+type CommonFields = { [P in Contract['commonKeys'][number]]: string }
+
+/**
+ * Forme typée du formData pour un type interne donné (ex: 'ENR_SI_008').
+ * Les clés obligatoires sont requises, les clés optionnelles facultatives,
+ * les types (chaîne / nombre ou chaîne numérique / liste) issus du contrat.
+ */
+export type FormDataFor<T extends InternalType> = RequiredFields<T> &
+  OptionalFields<T> &
+  StringFields<T> &
+  NumberFields<T> &
+  ArrayFields<T> &
+  CommonFields
+
+export type FormDataByType = { [T in InternalType]: FormDataFor<T> }
+
+function isEmptyValue(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  if (typeof value === 'string' && value.trim() === '') return true
+  if (Array.isArray(value) && value.length === 0) return true
+  if (typeof value === 'number' && Number.isNaN(value)) return true
+  return false
+}
+
+function isNumeric(value: unknown): boolean {
+  if (typeof value === 'number') return !Number.isNaN(value)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed !== '' && !Number.isNaN(Number(trimmed))
+  }
+  return false
+}
+
+function normalizeType(type: RequestType | InternalType): InternalType {
+  return PUBLIC_TO_INTERNAL[type as RequestType] ?? (type as InternalType)
+}
+
+/** Clés hors contrat pour un type (identiques à la logique backend). */
+export function getUnknownFormDataKeys(
+  type: RequestType | InternalType,
+  formData: unknown
+): string[] {
+  if (!formData || typeof formData !== 'object' || Array.isArray(formData)) return []
+  const schema = FORM_DATA_CONTRACT.schemas[normalizeType(type)]
+  if (!schema) return []
+  const allowed = new Set<string>([
+    ...FORM_DATA_CONTRACT.commonKeys,
+    ...schema.required,
+    ...schema.optional,
+    ...FORM_DATA_CONTRACT.legacyKeys,
+  ])
+  return Object.keys(formData).filter((key) => !allowed.has(key))
+}
+
+/**
+ * Valide un formData contre le schéma du type de demande.
+ * Miroir exact de `validateFormData` du backend (mêmes messages).
+ *
+ * @param type type public (ASSET, CASH…) ou interne (ENR_SI_008…)
+ * @param formData objet formData
+ * @param options.strict=true : clés obligatoires + inconnues exigées
+ * @returns message d'erreur en français, ou null si valide
+ */
+export function validateFormData(
+  type: RequestType | InternalType,
+  formData: unknown,
+  options: { strict?: boolean } = {}
+): string | null {
+  if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
+    return 'formData doit être un objet JSON.'
+  }
+  const schema = FORM_DATA_CONTRACT.schemas[normalizeType(type)]
+  if (!schema) return null
+
+  const fd = formData as Record<string, unknown>
+  const present = (key: string) => fd[key] !== undefined && fd[key] !== null
+
+  for (const key of schema.numbers) {
+    if (!present(key) || isEmptyValue(fd[key])) continue
+    if (!isNumeric(fd[key])) return 'Le champ « ' + key + ' » doit être un nombre.'
+  }
+  for (const key of schema.strings) {
+    if (!present(key) || isEmptyValue(fd[key])) continue
+    if (typeof fd[key] !== 'string') {
+      return 'Le champ « ' + key + ' » doit être une chaîne de caractères.'
+    }
+  }
+  for (const key of schema.arrays) {
+    if (!present(key) || isEmptyValue(fd[key])) continue
+    if (!Array.isArray(fd[key])) return 'Le champ « ' + key + ' » doit être une liste.'
+  }
+
+  if (options.strict !== false) {
+    const missing = schema.required.filter((key) => isEmptyValue(fd[key]))
+    if (missing.length > 0) {
+      return 'Champs obligatoires manquants ou vides dans formData : ' + missing.join(', ') + '.'
+    }
+    const unknown = getUnknownFormDataKeys(normalizeType(type), formData)
+    if (unknown.length > 0) {
+      const canonical = [...schema.required, ...schema.optional]
+      return 'Champs inattendus dans formData : ' + unknown.join(', ') + '. Clés autorisées pour ' + schema.publicType + ' : ' + canonical.join(', ') + '.'
+    }
+  }
+
+  return null
+}

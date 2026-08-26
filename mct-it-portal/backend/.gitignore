@@ -1,0 +1,34 @@
+# Database files
+*.db
+*.sqlite
+
+# User uploads (PDF, attachments, proformas)
+uploads/attachments/
+uploads/requests/
+uploads/proformas/
+uploads/*.pdf
+
+# Generated PDF output
+output/
+pdf-cache/
+
+# Node
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/

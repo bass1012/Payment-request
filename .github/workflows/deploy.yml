@@ -1,0 +1,184 @@
+name: Deploy to server
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Build backend (install deps if needed)
+        run: |
+          cd "mct-it-portal/backend"
+          npm ci || npm install
+          # optional: run build if a build script exists
+          npm run build || true
+
+      - name: Build frontend
+        run: |
+          cd "mct-it-portal/frontend"
+          npm ci || npm install
+          npm run build
+
+      - name: Create remote backup
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            mkdir -p ${{ secrets.REMOTE_DIR }}/backups/releases
+            if [ -d "${{ secrets.REMOTE_DIR }}" ]; then
+              ts=$(date -u +"%Y%m%dT%H%M%SZ")
+              tar -C "${{ secrets.REMOTE_DIR }}" -czf "${{ secrets.REMOTE_DIR }}/backups/releases/release-$ts.tar.gz" . || true
+            fi
+
+      - name: Copy artifacts to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          source: |
+            mct-it-portal/backend
+            mct-it-portal/frontend/dist
+          target: ${{ secrets.REMOTE_DIR }}
+
+      - name: Run remote deploy commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            cd ${{ secrets.REMOTE_DIR }} || exit 1
+            # deploy backend: install deps, run migrations if DATABASE_URL is provided, then restart
+            if [ -d backend ]; then
+              cd backend
+              # if DATABASE_URL secret is provided, run migrations first
+              if [ -n "${{ secrets.DATABASE_URL }}" ]; then
+                export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+                echo "Running Prisma migrations (production)..."
+                npm run db:migrate:production || npx prisma migrate deploy --schema prisma/postgresql/schema.prisma || true
+              fi
+              npm install --production || true
+              # restart with pm2 if available
+              if command -v pm2 >/dev/null 2>&1; then
+                pm2 restart mct-it-portal || pm2 start src/server.js --name mct-it-portal
+              fi
+            fi
+
+      - name: Notify Slack (success)
+        if: ${{ success() }}
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            payload=$(jq -n --arg t "Deployment succeeded: $GITHUB_REPOSITORY@$GITHUB_SHA" '{text: $t}')
+            curl -s -X POST -H 'Content-type: application/json' --data "$payload" ${{ secrets.SLACK_WEBHOOK }} || true
+          fi
+
+      - name: Send success email
+        if: ${{ success() && secrets.SMTP_SERVER }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Deployment succeeded: ${{ github.repository }}"
+          body: "Deployment of ${{ github.repository }} to ${{ secrets.SSH_HOST }} succeeded."
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}
+  rollback:
+    name: Rollback on failure
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: ${{ failure() }}
+    steps:
+      - name: Restore last backup on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            DIR=${{ secrets.REMOTE_DIR }}
+            cd "$DIR" || exit 1
+            backup=$(ls -1t backups/releases/*.tar.gz 2>/dev/null | head -n1 || true)
+            if [ -n "$backup" ]; then
+              rm -rf "$DIR"/* || true
+              tar -C "$DIR" -xzf "$backup"
+              # restart pm2 if available
+              if command -v pm2 >/dev/null 2>&1; then
+                pm2 restart mct-it-portal || pm2 start src/server.js --name mct-it-portal || true
+              fi
+            else
+              echo "No backup found to restore"
+              exit 1
+            fi
+
+      - name: Notify Slack (rollback)
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            payload=$(jq -n --arg t "Deployment failed and rollback executed: $GITHUB_REPOSITORY@$GITHUB_SHA" '{text: $t}')
+            curl -s -X POST -H 'Content-type: application/json' --data "$payload" ${{ secrets.SLACK_WEBHOOK }} || true
+          fi
+
+      - name: Send rollback email
+        if: ${{ secrets.SMTP_SERVER }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Deployment failed and rollback executed: ${{ github.repository }}"
+          body: "Deployment failed for ${{ github.repository }} on ${{ secrets.SSH_HOST }} and rollback was executed."
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}
+
+  notify:
+    name: Notify final status
+    runs-on: ubuntu-latest
+    needs: [build-and-deploy, rollback]
+    if: ${{ always() }}
+    steps:
+      - name: Notify Slack (final)
+        run: |
+          status="${{ needs.build-and-deploy.result }}"
+          if [ "$status" = "success" ]; then
+            text="Deployment succeeded: $GITHUB_REPOSITORY@$GITHUB_SHA"
+          else
+            text="Deployment failed: $GITHUB_REPOSITORY@$GITHUB_SHA (rollback attempted)"
+          fi
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            payload=$(jq -n --arg t "$text" '{text: $t}')
+            curl -s -X POST -H 'Content-type: application/json' --data "$payload" ${{ secrets.SLACK_WEBHOOK }} || true
+          fi
+
+      - name: Send final status email
+        if: ${{ secrets.SMTP_SERVER }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Deployment status: ${{ github.repository }}"
+          body: "Final deployment status for ${{ github.repository }}: ${{ needs.build-and-deploy.result }}"
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}

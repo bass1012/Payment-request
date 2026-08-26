@@ -1,0 +1,322 @@
+// PostgreSQL schema — synchronized with schema.prisma
+// Run: npx prisma migrate dev --schema=prisma/postgresql/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  directionName  String
+  directionCode  String
+  chefEmail      String?
+  chefName       String?
+  directorEmail  String?
+  directorName   String?
+  createdAt      DateTime @default(now())
+
+  users          User[]     @relation("DepartmentUsers")
+  requests       Request[]  @relation("DepartmentRequests")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String
+  firstName    String
+  lastName     String
+  matricule    String?
+  fonction     String?
+  role         String     @default("EMPLOYEE")
+  isActive     Boolean    @default(true)
+  tokenVersion Int        @default(0)
+  emailVerified      Boolean    @default(false)
+  verificationToken  String?    @unique
+  verificationTokenExpiresAt DateTime?
+  departmentId String?
+  department   Department? @relation("DepartmentUsers", fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  requests     Request[]  @relation("RequestOwner")
+  validations  Validation[]
+  delegationsGiven Delegation[] @relation("DelegatorUser")
+  delegationsReceived Delegation[] @relation("DelegateeUser")
+  refreshTokens   RefreshToken[]
+
+  @@index([departmentId])
+  @@index([role, isActive])
+}
+
+
+model Request {
+  id            String        @id @default(uuid())
+  reference     String        @unique
+  type          String
+  status        String        @default("DRAFT")
+
+  // Données demandeur
+  requesterId   String
+  requester     User          @relation("RequestOwner", fields: [requesterId], references: [id], onDelete: Restrict)
+  departmentId  String?
+  department    Department?   @relation("DepartmentRequests", fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // Données formulaire (JSON stocké en String)
+  formData      String
+
+  // Suivi
+  currentStep   Int           @default(1)
+  version       Int           @default(0)
+  currentRevision Int         @default(1)
+  rejectedAt    DateTime?
+  rejectionReason String?
+  closedAt      DateTime?
+  closureNote   String?
+
+  // Informations de paiement (Trésorerie)
+  paymentAmount      Decimal?
+  paymentReference   String?
+  paymentComment     String?
+  paymentValidatedAt DateTime?
+
+  uploadedPdfPath String?
+  attachments     String?
+  proformas       String?
+
+  // Champs pour le Mémo (Moyens Généraux)
+  memoMaterial       String?
+  memoSpecs          String?
+  memoScreenSize     String?
+  memoAccessories    String?
+  memoSentAt         DateTime?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  validations   Validation[]
+  revisions     RequestRevision[]
+  emailLogs     EmailLog[]
+  attachmentRecords Attachment[]
+  slaNotifications SlaNotification[]
+  signatureAuditLogs SignatureAuditLog[]
+  obligations   Obligation[]
+
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+  @@index([departmentId, type, currentStep])
+}
+
+model SlaNotification {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision      Int
+  step          Int
+  level         String
+  status        String   @default("PENDING")
+  recipientHash String
+  sentAt        DateTime?
+  failedAt      DateTime?
+  lastErrorCode String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([requestId, revision, step, level])
+  @@index([status, createdAt])
+}
+
+model RequestRevision {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision      Int
+  reason        String
+  snapshot      String
+  createdById   String
+  createdByName String
+  createdByEmail String
+  createdAt     DateTime @default(now())
+
+  @@unique([requestId, revision])
+  @@index([requestId, createdAt])
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  name      String
+  path      String   @unique
+  mimeType  String
+  size      Int
+  kind      String   @default("JUSTIFICATION")
+  revision  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([requestId, revision])
+}
+
+model ReferenceCounter {
+  year      Int      @id
+  lastValue Int
+  updatedAt DateTime @updatedAt
+}
+
+model Validation {
+  id         String           @id @default(uuid())
+  decisionKey String?         @unique
+  requestId  String
+  request    Request          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  validatorId String?
+  validator  User?            @relation(fields: [validatorId], references: [id], onDelete: SetNull)
+  revision   Int              @default(1)
+  step       Int
+  stepLabel  String
+  action     String
+  comment    String?
+  validatorName String?
+  validatorEmail String?
+  authorizationMode String         @default("DIRECT")
+  delegationId String?
+  delegatorId String?
+  delegatorName String?
+  delegatorEmail String?
+  delegationScope String?
+  signatureStyle String?
+  signatureImage String?
+  signatureInitials String?
+  createdAt  DateTime         @default(now())
+
+  @@unique([requestId, step, revision])
+  @@index([requestId, revision, createdAt])
+  @@index([validatorId])
+  @@index([validatorEmail])
+}
+
+model EmailLog {
+  id         String   @id @default(uuid())
+  requestId  String
+  request    Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  to         String
+  subject    String
+  status     String   @default("sent")
+  error      String?
+  sentAt     DateTime @default(now())
+
+  @@index([requestId, sentAt])
+}
+
+model SignatureAuditLog {
+  id             String   @id @default(uuid())
+  auditKey       String   @unique
+  requestId      String
+  request        Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision       Int      @default(1)
+  step           Int
+  stepLabel      String
+  action         String
+  validatorId    String?
+  validatorName  String
+  validatorEmail String
+  validatorRole  String?
+  authorizationMode String  @default("DIRECT")
+  delegationId   String?
+  delegatorId    String?
+  delegatorName  String?
+  delegatorEmail String?
+  delegationScope String?
+  ipAddress      String?
+  userAgent      String?
+  documentHash   String
+  consentText    String
+  consentGiven   Boolean  @default(true)
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  @@index([requestId, revision, createdAt])
+  @@index([validatorEmail])
+  @@index([documentHash])
+}
+
+model Delegation {
+  id           String   @id @default(uuid())
+  delegatorId  String
+  delegator    User     @relation("DelegatorUser", fields: [delegatorId], references: [id], onDelete: Cascade)
+  delegateeId  String
+  delegatee    User     @relation("DelegateeUser", fields: [delegateeId], references: [id], onDelete: Cascade)
+  startDate    DateTime
+  endDate      DateTime
+  scope        String   @default("ALL")
+  isActive     Boolean  @default(true)
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([delegatorId, isActive])
+  @@index([delegateeId, isActive])
+}
+
+model OtpToken {
+  id        String    @id @default(uuid())
+  userId    String
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, email])
+  @@index([expiresAt])
+}
+
+model Obligation {
+  id            String    @id @default(uuid())
+  requestId     String
+  request       Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  assigneeEmail String
+  dueDate       DateTime
+  status        String    @default("PENDING")
+  completedAt   DateTime?
+  alertSentAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([requestId, status])
+  @@index([assigneeEmail, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DocumentArchive {
+  id         String   @id @default(uuid())
+  requestId  String?
+  requestRef String?
+  docKind    String
+  fileName   String
+  filePath   String
+  fileSize   Int?
+  department String?
+  createdAt  DateTime @default(now())
+
+  @@index([docKind, createdAt])
+  @@index([requestRef])
+}

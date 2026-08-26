@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../lib/api'
 
@@ -8,6 +8,8 @@ export default function VerifyEmailPage() {
   const { token } = useParams<{ token: string }>()
   const [status, setStatus] = useState<Status>('loading')
   const [message, setMessage] = useState('')
+  // Guard contre le double-appel React StrictMode (montage/démontage en dev)
+  const hasFetched = useRef(false)
 
   useEffect(() => {
     if (!token) {
@@ -15,6 +17,10 @@ export default function VerifyEmailPage() {
       setMessage('Lien de vérification manquant ou invalide.')
       return
     }
+    // Ne faire l'appel qu'une seule fois même en StrictMode
+    if (hasFetched.current) return
+    hasFetched.current = true
+
     api
       .get(`/auth/verify/${token}`)
       .then(r => {
@@ -40,7 +46,7 @@ export default function VerifyEmailPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white mb-4">
             <span className="text-2xl font-black text-mct-blue">MCT</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">MCT IT Portal</h1>
+          <h1 className="text-2xl font-bold text-white">ERP NATIF MCT</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">

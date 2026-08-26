@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "description": "Contrat des clés formData par type de demande MCT. Source de vérité unique partagée entre le backend (validation à la soumission) et le frontend (types TypeScript et contrôle avant envoi). Toute modification de ce fichier doit être reflétée des deux côtés — le backend rejette une soumission dont les clés ne respectent pas ce contrat.",
+  "commonKeys": ["firstName", "lastName", "department", "position", "matricule"],
+  "legacyKeys": [
+    "numeroMemo",
+    "motif",
+    "demandesInformatiques",
+    "licencesApplications",
+    "accesPrivileges",
+    "division",
+    "service",
+    "objet",
+    "chantier",
+    "site",
+    "chrono",
+    "copiesA",
+    "hasAppro",
+    "hasBC",
+    "hasBL",
+    "hasDecompte",
+    "hasDevis",
+    "hasFacture",
+    "expenses",
+    "amount",
+    "direction",
+    "fonction"
+  ],
+  "schemas": {
+    "ENR_SI_005": {
+      "publicType": "EMAIL",
+      "description": "Création d'adresse électronique",
+      "required": [],
+      "optional": ["memoNumber"],
+      "strings": ["memoNumber"],
+      "numbers": [],
+      "arrays": []
+    },
+    "ENR_SI_006": {
+      "publicType": "PRINT",
+      "description": "Impression couleur",
+      "required": ["printObject", "copiesA4", "copiesA3"],
+      "optional": [],
+      "strings": ["printObject"],
+      "numbers": ["copiesA4", "copiesA3"],
+      "arrays": []
+    },
+    "ENR_SI_008": {
+      "publicType": "ASSET",
+      "description": "Demande d'actifs informatiques",
+      "required": ["requestReason"],
+      "optional": ["itAssets", "softwareLicenses", "accessPrivileges"],
+      "strings": ["itAssets", "softwareLicenses", "accessPrivileges", "requestReason"],
+      "numbers": [],
+      "arrays": []
+    },
+    "ENR_RF_002": {
+      "publicType": "CASH",
+      "description": "Bon de caisse",
+      "required": ["paymentAmount", "requestReason"],
+      "optional": [],
+      "strings": ["requestReason"],
+      "numbers": ["paymentAmount"],
+      "arrays": []
+    },
+    "ENR_GA_003": {
+      "publicType": "SUPPLY",
+      "description": "Demande d'approvisionnement",
+      "required": ["allocationSection", "items", "expenseNature", "possibleSuppliers", "deliveryAddress", "offersAmount"],
+      "optional": [
+        "consultedSubcontractors",
+        "linkedAssets",
+        "linkedAssetRequestId",
+        "linkedAssetRequestRef",
+        "supplier1",
+        "supplier2",
+        "supplier3",
+        "subcontractor1",
+        "subcontractor2",
+        "subcontractor3",
+        "selectedAssetIds"
+      ],
+      "strings": [
+        "allocationSection",
+        "deliveryAddress",
+        "supplier1",
+        "supplier2",
+        "supplier3",
+        "subcontractor1",
+        "subcontractor2",
+        "subcontractor3",
+        "linkedAssetRequestId",
+        "linkedAssetRequestRef"
+      ],
+      "numbers": ["offersAmount"],
+      "arrays": ["items", "expenseNature", "possibleSuppliers", "consultedSubcontractors", "linkedAssets", "selectedAssetIds"]
+    },
+    "AUTRE": {
+      "publicType": "OTHER",
+      "description": "Autre demande IT",
+      "required": ["description"],
+      "optional": [],
+      "strings": ["description"],
+      "numbers": [],
+      "arrays": []
+    }
+  }
+}

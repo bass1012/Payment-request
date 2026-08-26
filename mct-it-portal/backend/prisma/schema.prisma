@@ -10,7 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Roles: EMPLOYEE | CHEF_DEPT | DIRECTOR | DG | DRH | IT | ADMIN
+// Roles: EMPLOYEE | CHEF_DEPT | DIRECTOR | DG | RH | IT | ADMIN | MOYENS_GENERAUX
 // RequestType: ENR_SI_005 | ENR_SI_006 | ENR_SI_008 | AUTRE
 // RequestStatus: DRAFT | SUBMITTED | VALIDATION_N1 | VALIDATION_N2 | VALIDATION_DG | IN_PROGRESS_IT | CLOSED | REJECTED
 // ValidationAction: APPROVED | REJECTED
@@ -27,8 +27,8 @@ model Department {
   directorName   String?
   createdAt      DateTime @default(now())
 
-  users          User[]
-  requests       Request[]
+  users          User[]     @relation("DepartmentUsers")
+  requests       Request[]  @relation("DepartmentRequests")
 }
 
 model User {
@@ -41,16 +41,26 @@ model User {
   fonction     String?
   role         String     @default("EMPLOYEE")
   isActive     Boolean    @default(true)
+  tokenVersion Int        @default(0)
   emailVerified      Boolean    @default(false)
-  verificationToken  String?
+  verificationToken  String?    @unique
+  verificationTokenExpiresAt DateTime?
   departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
+  department   Department? @relation("DepartmentUsers", fields: [departmentId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   requests     Request[]  @relation("RequestOwner")
   validations  Validation[]
+  delegationsGiven Delegation[] @relation("DelegatorUser")
+  delegationsReceived Delegation[] @relation("DelegateeUser")
+  refreshTokens   RefreshToken[]
+  comments     RequestComment[]
+
+  @@index([departmentId])
+  @@index([role, isActive])
 }
+
 
 model Request {
   id            String        @id @default(uuid())
@@ -60,49 +70,276 @@ model Request {
   
   // Données demandeur
   requesterId   String
-  requester     User          @relation("RequestOwner", fields: [requesterId], references: [id])
+  requester     User          @relation("RequestOwner", fields: [requesterId], references: [id], onDelete: Restrict)
   departmentId  String?
-  department    Department?   @relation(fields: [departmentId], references: [id])
+  department    Department?   @relation("DepartmentRequests", fields: [departmentId], references: [id], onDelete: SetNull)
 
   // Données formulaire (JSON stocké en String pour SQLite)
   formData      String
 
   // Suivi
   currentStep   Int           @default(1)
+  version       Int           @default(0)
+  currentRevision Int         @default(1)
   rejectedAt    DateTime?
   rejectionReason String?
   closedAt      DateTime?
   closureNote   String?
 
+  // Informations de paiement (Trésorerie)
+  paymentAmount      Decimal?
+  paymentReference   String?
+  paymentComment     String?
+  paymentValidatedAt DateTime?
+
+  uploadedPdfPath String?
+  attachments     String?
+  proformas       String?
+
+  // Champs pour le Mémo (Moyens Généraux)
+  memoMaterial       String?
+  memoSpecs          String?
+  memoScreenSize     String?
+  memoAccessories    String?
+  memoSentAt         DateTime?
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   validations   Validation[]
+  revisions     RequestRevision[]
   emailLogs     EmailLog[]
+  attachmentRecords Attachment[]
+  slaNotifications SlaNotification[]
+  signatureAuditLogs SignatureAuditLog[]
+  obligations   Obligation[]
+  comments      RequestComment[]
+
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+  @@index([departmentId, type, currentStep])
+}
+
+model SlaNotification {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision      Int
+  step          Int
+  level         String
+  status        String   @default("PENDING")
+  recipientHash String
+  sentAt        DateTime?
+  failedAt      DateTime?
+  lastErrorCode String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([requestId, revision, step, level])
+  @@index([status, createdAt])
+}
+
+model RequestRevision {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision      Int
+  reason        String
+  snapshot      String
+  createdById   String
+  createdByName String
+  createdByEmail String
+  createdAt     DateTime @default(now())
+
+  @@unique([requestId, revision])
+  @@index([requestId, createdAt])
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  name      String
+  path      String   @unique
+  mimeType  String
+  size      Int
+  kind      String   @default("JUSTIFICATION")
+  revision  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([requestId, revision])
+}
+
+model ReferenceCounter {
+  year      Int      @id
+  lastValue Int
+  updatedAt DateTime @updatedAt
 }
 
 model Validation {
   id         String           @id @default(uuid())
+  decisionKey String?         @unique
   requestId  String
-  request    Request          @relation(fields: [requestId], references: [id])
+  request    Request          @relation(fields: [requestId], references: [id], onDelete: Cascade)
   validatorId String?
-  validator  User?            @relation(fields: [validatorId], references: [id])
+  validator  User?            @relation(fields: [validatorId], references: [id], onDelete: SetNull)
+  revision   Int              @default(1)
   step       Int
   stepLabel  String           // ex: "Chef de Département", "Directeur des Opérations"
   action     String
   comment    String?
   validatorName String?       // Nom du valideur (snapshot au moment de la validation)
   validatorEmail String?
+  authorizationMode String         @default("DIRECT")
+  delegationId String?
+  delegatorId String?
+  delegatorName String?
+  delegatorEmail String?
+  delegationScope String?
+  signatureStyle String?
+  signatureImage String?
+  signatureInitials String?
   createdAt  DateTime         @default(now())
+
+  @@unique([requestId, step, revision])
+  @@index([requestId, revision, createdAt])
+  @@index([validatorId])
+  @@index([validatorEmail])
 }
 
 model EmailLog {
   id         String   @id @default(uuid())
   requestId  String
-  request    Request  @relation(fields: [requestId], references: [id])
+  request    Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   to         String
   subject    String
   status     String   @default("sent")
   error      String?
   sentAt     DateTime @default(now())
+
+  @@index([requestId, sentAt])
 }
+
+model SignatureAuditLog {
+  id             String   @id @default(uuid())
+  auditKey       String   @unique
+  requestId      String
+  request        Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  revision       Int      @default(1)
+  step           Int
+  stepLabel      String
+  action         String
+  validatorId    String?
+  validatorName  String
+  validatorEmail String
+  validatorRole  String?
+  authorizationMode String  @default("DIRECT")
+  delegationId   String?
+  delegatorId    String?
+  delegatorName  String?
+  delegatorEmail String?
+  delegationScope String?
+  ipAddress      String?
+  userAgent      String?
+  documentHash   String
+  consentText    String
+  consentGiven   Boolean  @default(true)
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  @@index([requestId, revision, createdAt])
+  @@index([validatorEmail])
+  @@index([documentHash])
+}
+
+model Delegation {
+  id           String   @id @default(uuid())
+  delegatorId  String
+  delegator    User     @relation("DelegatorUser", fields: [delegatorId], references: [id], onDelete: Cascade)
+  delegateeId  String
+  delegatee    User     @relation("DelegateeUser", fields: [delegateeId], references: [id], onDelete: Cascade)
+  startDate    DateTime
+  endDate      DateTime
+  scope        String   @default("ALL")
+  isActive     Boolean  @default(true)
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([delegatorId, isActive])
+  @@index([delegateeId, isActive])
+}
+
+model OtpToken {
+  id        String    @id @default(uuid())
+  userId    String
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, email])
+  @@index([expiresAt])
+}
+
+model Obligation {
+  id            String    @id @default(uuid())
+  requestId     String
+  request       Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  assigneeEmail String
+  dueDate       DateTime
+  status        String    @default("PENDING")
+  completedAt   DateTime?
+  alertSentAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([requestId, status])
+  @@index([assigneeEmail, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DocumentArchive {
+  id         String   @id @default(uuid())
+  requestId  String?
+  requestRef String?
+  docKind    String
+  fileName   String
+  filePath   String
+  fileSize   Int?
+  department String?
+  createdAt  DateTime @default(now())
+
+  @@index([docKind, createdAt])
+  @@index([requestRef])
+}
+
+model RequestComment {
+  id          String   @id @default(uuid())
+  requestId   String
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  step        Int      // Étape du workflow au moment du commentaire
+  stepLabel   String   // Libellé de l'étape (ex: "Chef de Département")
+  content     String
+  createdAt   DateTime @default(now())
+
+  @@index([requestId, step])
+  @@index([authorId, createdAt])
+}
+

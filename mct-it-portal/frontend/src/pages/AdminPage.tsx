@@ -1,54 +1,81 @@
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 import type { Request } from '../types'
-import { STATUS_LABELS, STATUS_BADGE_CLASS, TYPE_LABELS } from '../types'
+import { STATUS_LABELS, STATUS_BADGE_CLASS, TYPE_LABELS, getStatusLabel, isUserTurnMatch } from '../types'
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 type Tab = 'requests' | 'users'
 
-interface Department { id: string; name: string; code: string }
+interface Department { id: string; name: string; code: string; directionName: string; directionCode: string; selectable?: boolean }
+
+/** Grouper les départements par direction */
+function groupByDirection(depts: Department[]): Map<string, Department[]> {
+  const map = new Map<string, Department[]>()
+  for (let d of depts) {
+    // Les directions déclarées comme « services » sont masquées via le flag
+    // selectable fourni par l'API — plus aucun code en dur côté frontend.
+    if (d.selectable === false) {
+      continue
+    }
+
+    const key = d.directionName || 'Autre'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(d)
+  }
+  return map
+}
+import { useUsers } from '../hooks/useUsers'
+import { useAdminRequests } from '../hooks/useAdminRequests'
+import { VALID_ROLES as ROLES, ROLE_LABELS, Role } from '../constants'
+
 interface User {
   id: string; email: string; firstName: string; lastName: string;
-  role: string; matricule: string | null; fonction: string | null;
+  role: Role; matricule: string | null; fonction: string | null;
   isActive: boolean; department: Department | null; createdAt: string
 }
 
-const ROLES = ['EMPLOYEE', 'CHEF_DEPT', 'DIRECTOR', 'DG', 'DRH', 'IT', 'ADMIN']
-const ROLE_LABELS: Record<string, string> = {
-  EMPLOYEE: 'Employé', CHEF_DEPT: 'Chef de département', DIRECTOR: 'Directeur',
-  DG: 'Directeur Général', DRH: 'DRH', IT: 'Informatique', ADMIN: 'Administrateur',
-}
 
 export default function AdminPage() {
+  const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('requests')
 
-  // --- Demandes ---
-  const [requests, setRequests] = useState<Request[]>([])
-  const [loadingReq, setLoadingReq] = useState(true)
+  const queryClient = useQueryClient()
+
+  // --- Demandes (React Query) ---
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const { data: reqData, isLoading: loadingReq } = useAdminRequests({
+    page, limit: 20, status: statusFilter || undefined, type: typeFilter || undefined,
+  })
+  const requests = reqData?.data ?? []
+  const totalPages = reqData?.totalPages ?? 1
 
-  const loadRequests = () => {
-    setLoadingReq(true)
-    const params = new URLSearchParams({
-      page: String(page), limit: '20',
-      ...(statusFilter && { status: statusFilter }),
-      ...(typeFilter && { type: typeFilter }),
-    })
-    api.get(`/admin/requests?${params}`)
-      .then(r => { setRequests(r.data.data); setTotalPages(r.data.totalPages) })
-      .catch(() => toast.error('Erreur de chargement'))
-      .finally(() => setLoadingReq(false))
+  const handleDeleteRequest = async (id: string, ref: string) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la demande ${ref} ? Cette action est irréversible et effacera tous les justificatifs liés.`)) {
+      try {
+        await api.delete(`/requests/${id}`)
+        toast.success('Demande supprimée avec succès')
+        queryClient.invalidateQueries({ queryKey: ['admin-requests'] })
+        queryClient.invalidateQueries({ queryKey: ['requests'] })
+      } catch {
+        toast.error('Erreur lors de la suppression de la demande')
+      }
+    }
   }
 
-  // --- Utilisateurs ---
-  const [users, setUsers] = useState<User[]>([])
-  const [loadingUsers, setLoadingUsers] = useState(false)
-  const [departments, setDepartments] = useState<Department[]>([])
+  // --- Utilisateurs (React Query) ---
+  const { data: usersData, isLoading: loadingUsers } = useUsers({ limit: 200 })
+  const users = usersData?.data ?? []
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: ['departments'],
+    queryFn: async () => { const { data } = await api.get('/admin/departments'); return data },
+    staleTime: 300_000,
+  })
   const [showUserModal, setShowUserModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userForm, setUserForm] = useState({
@@ -56,13 +83,13 @@ export default function AdminPage() {
     role: 'EMPLOYEE', matricule: '', fonction: '', departmentId: '', isActive: true,
   })
 
-  const loadUsers = () => {
-    setLoadingUsers(true)
-    Promise.all([api.get('/admin/users'), api.get('/admin/departments')])
-      .then(([u, d]) => { setUsers(u.data); setDepartments(d.data) })
-      .catch(() => toast.error('Erreur de chargement'))
-      .finally(() => setLoadingUsers(false))
-  }
+  useEffect(() => {
+    const closeModalOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowUserModal(false)
+    }
+    document.addEventListener('keydown', closeModalOnEscape)
+    return () => document.removeEventListener('keydown', closeModalOnEscape)
+  }, [])
 
   const openCreate = () => {
     setEditingUser(null)
@@ -95,16 +122,14 @@ export default function AdminPage() {
     try {
       if (editingUser) { await api.patch(`/admin/users/${editingUser.id}`, payload); toast.success('Utilisateur mis à jour') }
       else { await api.post('/admin/users', payload); toast.success('Utilisateur créé') }
-      setShowUserModal(false); loadUsers()
+      setShowUserModal(false)
+      queryClient.invalidateQueries({ queryKey: ['users'] })
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err
         ? (err as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Erreur' : 'Erreur'
       toast.error(msg)
     }
   }
-
-  useEffect(() => { if (tab === 'requests') loadRequests() }, [page, statusFilter, typeFilter, tab])
-  useEffect(() => { if (tab === 'users') loadUsers() }, [tab])
 
   return (
     <div className="p-6 space-y-6">
@@ -172,11 +197,26 @@ export default function AdminPage() {
                           <td className="py-3 text-gray-600 max-w-[160px] truncate">{TYPE_LABELS[r.type]}</td>
                           <td className="py-3 text-gray-600 max-w-[140px] truncate">{r.department}</td>
                           <td className="py-3">
-                            <span className={STATUS_BADGE_CLASS[r.status]}>{STATUS_LABELS[r.status]}</span>
+                            {(() => {
+                              const isUserTurn = isUserTurnMatch(r.nextValidatorEmail, user?.email);
+                              const badgeClass = isUserTurn ? 'badge-decision' : STATUS_BADGE_CLASS[r.status];
+                              const statusText = getStatusLabel(r, user?.email);
+                              return (
+                                <span className={badgeClass}>
+                                  {statusText}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-3 text-gray-500">{format(new Date(r.createdAt), 'dd/MM/yyyy')}</td>
-                          <td className="py-3 text-right">
+                          <td className="py-3 text-right space-x-3">
                             <Link to={`/requests/${r.id}`} className="text-mct-blue hover:underline font-medium">Voir</Link>
+                            <button
+                              onClick={() => handleDeleteRequest(r.id, r.referenceNumber)}
+                              className="text-red-600 hover:text-red-800 hover:underline font-medium"
+                            >
+                              Supprimer
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -228,7 +268,7 @@ export default function AdminPage() {
                       <td className="py-3 text-gray-600">{u.email}</td>
                       <td className="py-3">
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                          {ROLE_LABELS[u.role] ?? u.role}
+                          {ROLE_LABELS[u.role as Role] ?? u.role}
                         </span>
                       </td>
                       <td className="py-3 text-gray-600">{u.department?.name ?? '—'}</td>
@@ -238,7 +278,7 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        <button onClick={() => openEdit(u)} className="text-mct-blue hover:underline font-medium">Modifier</button>
+                        <button onClick={() => openEdit(u as User)} className="text-mct-blue hover:underline font-medium">Modifier</button>
                       </td>
                     </tr>
                   ))}
@@ -253,12 +293,17 @@ export default function AdminPage() {
       {/* ===== MODAL UTILISATEUR ===== */}
       {showUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-5">
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-dialog-title"
+          >
+            <h3 id="user-dialog-title" className="text-lg font-semibold text-gray-900 mb-5">
               {editingUser ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}
             </h3>
             <form onSubmit={saveUser} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Prénom *</label>
                   <input className="input py-1.5" required value={userForm.firstName} onChange={setF('firstName')} />
@@ -278,7 +323,7 @@ export default function AdminPage() {
                 <label className="label text-xs">Mot de passe {editingUser ? '(laisser vide = inchangé)' : '*'}</label>
                 <input className="input py-1.5" type="password" required={!editingUser} value={userForm.password} onChange={setF('password')} placeholder="Min. 8 caractères" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Rôle *</label>
                   <select className="input py-1.5" required value={userForm.role} onChange={setF('role')}>
@@ -289,11 +334,15 @@ export default function AdminPage() {
                   <label className="label text-xs">Département</label>
                   <select className="input py-1.5" value={userForm.departmentId} onChange={setF('departmentId')}>
                     <option value="">— Aucun —</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {Array.from(groupByDirection(departments)).map(([dirName, depts]) => (
+                      <optgroup key={dirName} label={dirName}>
+                        {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Matricule</label>
                   <input className="input py-1.5" value={userForm.matricule} onChange={setF('matricule')} />

@@ -25,7 +25,8 @@
     "test:money": "node test/money.test.js",
     "test:reporting": "node test/reporting.test.js",
     "test:unit": "node test/auth-rbac.test.js && node test/money.test.js && node test/logger.test.js && node test/sla.test.js && node test/sla-notification.test.js && node test/request-constants.test.js && node test/request-route-contract.test.js && node test/request-shared.test.js && node test/reporting.test.js && node test/pdf-signature.test.js && node test/delegation-authority.test.js && node test/upload-route.test.js && node test/formData.schemas.test.js && node test/formData.contract-sync.test.js && node test/organization.config.test.js && node test/refresh-token.test.js && node test/validation-schemas.test.js && node test/integration-enhancements.test.js",
-    "test:schemas": "npm run db:validate && npm run db:validate:production"
+    "test:schemas": "npm run db:validate && npm run db:validate:production",
+    "test": "npm run test:unit"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
@@ -39,10 +40,10 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
-    "nodemailer": "^6.9.13",
+    "nodemailer": "^9.0.5",
     "pdf-lib": "^1.17.1",
     "pino": "^10.3.1",
-    "puppeteer-core": "^21.11.0"
+    "puppeteer-core": "^25.9.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.0.0",

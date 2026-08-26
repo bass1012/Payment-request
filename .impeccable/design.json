@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-23T17:52:00Z",
+  "title": "Design System: MCT IT Portal",
+  "extensions": {
+    "colorMeta": {
+      "mct-blue": {
+        "role": "primary",
+        "displayName": "Bleu Institutionnel MCT",
+        "canonical": "#003087",
+        "tonalRamp": ["#001234", "#001D52", "#002870", "#003087", "#1A5AA8", "#4D83C4", "#80ADDF", "#B3D6F5"]
+      },
+      "mct-red": {
+        "role": "secondary",
+        "displayName": "Rouge Alerte MCT",
+        "canonical": "#C8102E",
+        "tonalRamp": ["#4A0611", "#7A0A1C", "#A20E26", "#C8102E", "#D94058", "#E57082", "#F0A0AD", "#FBD0D7"]
+      },
+      "accent-blue": {
+        "role": "primary",
+        "displayName": "Bleu Action",
+        "canonical": "#2563EB",
+        "tonalRamp": ["#0E2559", "#153A8C", "#1D4FBF", "#2563EB", "#5182EF", "#7CA2F3", "#A7C1F7", "#D3E1FB"]
+      },
+      "accent-indigo": {
+        "role": "primary",
+        "displayName": "Indigo Action",
+        "canonical": "#4338CA",
+        "tonalRamp": ["#1A164E", "#291F76", "#362B9E", "#4338CA", "#6960D5", "#8F88DF", "#B4AFEA", "#DAD7F5"]
+      },
+      "surface-primary": {
+        "role": "neutral",
+        "displayName": "Ardoise Claire",
+        "canonical": "#F8FAFC",
+        "tonalRamp": ["#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F1F5F9", "#F8FAFC"]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Nuit Profonde",
+        "canonical": "#020617",
+        "tonalRamp": ["#020617", "#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1"]
+      },
+      "status-submitted": {
+        "role": "neutral",
+        "displayName": "Orange Soumis",
+        "canonical": "#F97316",
+        "tonalRamp": ["#5C2A08", "#8B3F0D", "#BA5512", "#F97316", "#FA9245", "#FBB174", "#FCD0A3", "#FDEFD2"]
+      },
+      "status-closed": {
+        "role": "neutral",
+        "displayName": "Vert Clôturé",
+        "canonical": "#22C55E",
+        "tonalRamp": ["#0D4B24", "#136E36", "#199248", "#22C55E", "#4ED17E", "#7ADE9E", "#A6EABE", "#D2F6DF"]
+      },
+      "status-rejected": {
+        "role": "neutral",
+        "displayName": "Rouge Rejeté",
+        "canonical": "#EF4444",
+        "tonalRamp": ["#5C1A1A", "#8B2727", "#BA3434", "#EF4444", "#F26A6A", "#F59090", "#F8B5B5", "#FBDBDB"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Titre d'accueil du dashboard uniquement." },
+      "headline": { "displayName": "Headline", "purpose": "Titres de sections et en-têtes de cartes." },
+      "title": { "displayName": "Title", "purpose": "Labels, sous-titres, noms dans les tableaux." },
+      "body": { "displayName": "Body", "purpose": "Texte courant, descriptions, contenu de cellules." },
+      "label": { "displayName": "Label", "purpose": "Labels de champs de formulaire, kickers de version." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 2px 0 rgba(0, 0, 0, 0.05)", "purpose": "Ombre par défaut des cartes de contenu." },
+      { "name": "card-header", "value": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)", "purpose": "Sidebar mobile et header." },
+      { "name": "cta-glow", "value": "0 10px 15px -3px rgba(59, 130, 246, 0.1)", "purpose": "Lueur bleutée sous les boutons CTA primaires." },
+      { "name": "modal-elevation", "value": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", "purpose": "Formulaire de connexion et modales." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "all 150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Transition par défaut pour les changements de couleur (hover)." },
+      { "name": "ease-all", "value": "all 200ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Transition pour les changements d'état complets (focus, background)." },
+      { "name": "active-press", "value": "transform: scale(0.98)", "purpose": "Feedback tactile sur les boutons primaires." },
+      { "name": "pulse", "value": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite", "purpose": "Indicateur en ligne (online dot, badge décision)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "CTA principal pour les actions décisives : soumission, connexion, validation.",
+      "html": "<button class=\"ds-btn-primary\">Nouvelle demande</button>",
+      "css": ".ds-btn-primary { background: linear-gradient(to right, #2563EB, #4338CA); color: #fff; font-weight: 600; font-size: 0.875rem; padding: 12px 24px; border: none; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1); cursor: pointer; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); font-family: system-ui, -apple-system, sans-serif; } .ds-btn-primary:hover { background: linear-gradient(to right, #1D4ED8, #3730A3); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563EB; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Actions secondaires : filtres, annulation, navigation auxiliaire.",
+      "html": "<button class=\"ds-btn-secondary\">Filtrer</button>",
+      "css": ".ds-btn-secondary { background: #F1F5F9; color: #374151; font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1); font-family: system-ui, -apple-system, sans-serif; } .ds-btn-secondary:hover { background: #E2E8F0; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563EB; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Actions destructives : rejet, suppression.",
+      "html": "<button class=\"ds-btn-danger\">Rejeter</button>",
+      "css": ".ds-btn-danger { background: #DC2626; color: #fff; font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1); font-family: system-ui, -apple-system, sans-serif; } .ds-btn-danger:hover { background: #B91C1C; } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #DC2626; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Conteneur de contenu standard pour formulaires, listes, et détails.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Titre de section</h3><p class=\"ds-card-body\">Contenu de la carte avec des informations structurées.</p></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-family: system-ui, -apple-system, sans-serif; } .ds-card-title { font-size: 1.125rem; font-weight: 700; color: #0F172A; margin: 0 0 8px 0; } .ds-card-body { font-size: 0.875rem; color: #64748B; line-height: 1.6; margin: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Champ de saisie standard pour formulaires de demande et connexion.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\">Adresse email</label><input class=\"ds-input\" type=\"email\" placeholder=\"prenom.nom@mct.ci\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 4px; font-family: system-ui, -apple-system, sans-serif; } .ds-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; } .ds-input { width: 100%; background: rgba(248, 250, 252, 0.5); border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; font-size: 0.875rem; color: #1E293B; transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1); box-sizing: border-box; font-family: inherit; } .ds-input::placeholder { color: #94A3B8; } .ds-input:focus { background: #fff; outline: none; border-color: transparent; box-shadow: 0 0 0 2px #2563EB; }"
+    },
+    {
+      "name": "Status Badge (Closed)",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Badge de statut pour les demandes clôturées. Chaque statut a sa propre paire de couleurs.",
+      "html": "<span class=\"ds-badge-closed\">Clôturée</span>",
+      "css": ".ds-badge-closed { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: #F0FDF4; color: #166534; font-family: system-ui, -apple-system, sans-serif; }"
+    },
+    {
+      "name": "Status Badge (Submitted)",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Badge de statut pour les demandes soumises en attente de validation.",
+      "html": "<span class=\"ds-badge-submitted\">Soumise</span>",
+      "css": ".ds-badge-submitted { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: #FFF7ED; color: #9A3412; font-family: system-ui, -apple-system, sans-serif; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-sidebar",
+      "description": "Navigation latérale fixe avec icônes et labels.",
+      "html": "<nav class=\"ds-sidebar\"><a class=\"ds-nav-item ds-nav-active\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\" /></svg>Tableau de bord</a><a class=\"ds-nav-item\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\" /></svg>Nouvelle demande</a></nav>",
+      "css": ".ds-sidebar { background: #003087; padding: 16px; display: flex; flex-direction: column; gap: 4px; width: 256px; font-family: system-ui, -apple-system, sans-serif; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #93C5FD; text-decoration: none; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; } .ds-nav-item:hover { background: rgba(255, 255, 255, 0.1); color: #fff; } .ds-nav-active { background: rgba(255, 255, 255, 0.2); color: #fff; } .ds-nav-icon { width: 20px; height: 20px; flex-shrink: 0; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Carte de statistique avec valeur numérique, label, icône et accent coloré en bas.",
+      "html": "<div class=\"ds-stat-card ds-stat-blue\"><div class=\"ds-stat-content\"><div><p class=\"ds-stat-value\">12</p><p class=\"ds-stat-label\">Mes demandes</p></div><span class=\"ds-stat-icon\">📊</span></div><div class=\"ds-stat-accent\"></div></div>",
+      "css": ".ds-stat-card { position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #fff; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: 20px; font-family: system-ui, -apple-system, sans-serif; } .ds-stat-blue { background: #EFF6FF; } .ds-stat-content { display: flex; align-items: flex-start; justify-content: space-between; } .ds-stat-value { font-size: 1.875rem; font-weight: 800; color: #1D4ED8; margin: 0; } .ds-stat-label { font-size: 0.75rem; font-weight: 500; margin-top: 6px; opacity: 0.7; color: #1D4ED8; } .ds-stat-icon { font-size: 1.5rem; } .ds-stat-accent { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(to right, #3B82F6, #2563EB); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le Bureau Numérique",
+    "overview": "Le MCT IT Portal est un espace de travail administratif digitalisé qui incarne l'autorité institutionnelle de MCT tout en offrant une expérience fluide et contemporaine. Le système visuel repose sur un fond clair et neutre (slate-50) structuré par une navigation latérale bleu institutionnel, des cartes blanches à bords généreux, et des dégradés bleu-indigo ciblés sur les éléments d'action. L'ambiance est professionnelle et sérieuse — l'outil doit inspirer confiance, pas séduire.\n\nLa densité est moyenne : suffisamment aérée pour que chaque information respire dans les vues de détail, mais compacte dans les tableaux et listes pour permettre un balayage rapide. Le mode sombre est réservé aux zones d'alerte haute priorité (section \"À traiter par moi\" du dashboard), créant un contraste fonctionnel, pas décoratif.",
+    "keyCharacteristics": [
+      "Fond clair slate-50 avec cartes blanches à ombres légères",
+      "Navigation latérale fixe en bleu institutionnel MCT (#003087)",
+      "Dégradés bleu→indigo réservés aux CTAs primaires",
+      "Bords arrondis généreux (12-24px) sur cartes et boutons",
+      "Badges colorés par statut pour une lecture immédiate du workflow",
+      "Section prioritaire en fond sombre pour rupture visuelle contrôlée"
+    ],
+    "rules": [
+      { "name": "The Status Spectrum Rule", "body": "Chaque statut de workflow a une paire couleur fixe (texte + fond) qui ne sert qu'à ce statut. Orange = soumis, jaune = en attente, bleu = en cours, vert = clôturé, rouge = rejeté, gris = brouillon, violet = paiement, indigo = décision. Ne jamais réutiliser une couleur de statut pour un autre usage.", "section": "colors" },
+      { "name": "The Weight-Not-Font Rule", "body": "La hiérarchie typographique se construit exclusivement par le poids (400-800) et la taille. Pas de changement de famille typographique entre niveaux. Le monospace est réservé aux références de demandes et aux identifiants techniques.", "section": "typography" },
+      { "name": "The Tonal-Before-Shadow Rule", "body": "Préférer un changement de fond (blanc → sombre, blanc → teinté) à un ajout d'ombre pour signifier l'importance. Les ombres sont des finitions, pas des marqueurs de hiérarchie.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do utiliser le dégradé bleu→indigo uniquement sur les boutons d'action primaire et les titres accentués.",
+      "Do maintenir la paire couleur-statut fixe pour chaque état du workflow.",
+      "Do utiliser rounded-2xl à rounded-3xl pour les cartes et conteneurs, rounded-xl pour les boutons et inputs, rounded-full pour les badges.",
+      "Do réserver le fond sombre (slate-900/blue-950) aux zones d'action prioritaire et au panneau décoratif de connexion.",
+      "Do respecter la règle prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't utiliser le glassmorphism en dehors de la page de connexion.",
+      "Don't mélanger les couleurs de statut : orange n'est pas 'avertissement', c'est 'soumis'.",
+      "Don't utiliser d'ombre supérieure à shadow-xl.",
+      "Don't introduire de nouvelles familles typographiques.",
+      "Don't réduire les rayons d'arrondi en dessous de 8px sur les éléments interactifs."
+    ]
+  }
+}

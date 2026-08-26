@@ -53,3 +53,17 @@ mct-it-portal/frontend/test-results/
 
 # Coverage
 coverage/
+
+# Tool configs and caches
+.claude/
+.impeccable/
+.freebuff/
+.playwright/
+eslintcache
+*.pdf
+
+# npm cache
+mct-it-portal/frontend/npm-cache/
+
+# Output files
+output/
